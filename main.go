@@ -12,26 +12,48 @@ func convertSecondsToPace(seconds int) string {
 	return fmt.Sprintf("%d:%02d", minutes, secs)
 }
 
+// Bereken snelheid in km/u met 1 decimaal
+func paceToSpeedKmh(paceSeconds int) float64 {
+	if paceSeconds == 0 {
+		return 0.0
+	}
+	return 3600.0 / float64(paceSeconds) // seconden per km → km per uur
+}
+
+// Formateer snelheid naar 1 decimaal (bijv. 9.6)
+func formatSpeedKmh(speed float64) string {
+	return fmt.Sprintf("%.1f", speed)
+}
+
+// Totale tijd berekenen
+func calculateTotalTime(paceSeconds int, km int) int {
+	return paceSeconds * km
+}
+
+func formatTotalTime(totalSeconds int) string {
+	hours := totalSeconds / 3600
+	minutes := (totalSeconds % 3600) / 60
+	secs := totalSeconds % 60
+
+	if hours > 0 {
+		return fmt.Sprintf("%du %02d:%02d", hours, minutes, secs)
+	}
+	return fmt.Sprintf("%02d:%02d", minutes, secs)
+}
+
 func calculateTrainings(dagen int, dubbeldagen int, startMin, startSec, doelMin, doelSec int) []int {
 	trainingsdagen := make([]int, dagen)
 
 	startSeconds := 60*startMin + startSec
 	doelSeconds := 60*doelMin + doelSec
 
-	// Aantal dagen waarop het tempo écht moet dalen (normale dagen)
-	aantalStappen := dagen - dubbeldagen - 1 // -1 omdat we al op dag 1 starten
-	
+	aantalStappen := dagen - dubbeldagen - 1
 	if aantalStappen < 1 {
 		aantalStappen = 1
 	}
-	
-	// Totale te verbeteren seconden
+
 	teVerbeteren := startSeconds - doelSeconds
-
-	// Seconden per normale stap (integer deling)
 	split := teVerbeteren / aantalStappen
-
-	// We houden de "rest" over om aan het eind exact uit te komen
 	rest := teVerbeteren % aantalStappen
 
 	dubbeldagInterval := 0
@@ -44,28 +66,21 @@ func calculateTrainings(dagen int, dubbeldagen int, startMin, startSec, doelMin,
 
 	for i := 1; i < dagen; i++ {
 		if dubbeldagInterval == 0 || (i+1)%dubbeldagInterval != 0 {
-			// Normale dag: tempo verbetert
 			current -= split
-
-			// Verdeel de rest over de eerste paar normale dagen zodat we exact eindigen
 			if rest > 0 {
 				current--
 				rest--
 			}
-		} 
-		// else: dubbeldag → current blijft hetzelfde
-
+		}
 		trainingsdagen[i] = current
 	}
 
-	// Forceer de laatste dag altijd op exact het doeltempo (veiligheid)
 	trainingsdagen[dagen-1] = doelSeconds
-
 	return trainingsdagen
 }
 
-// getHtmlFile maakt een mooi HTML-tabelletje en slaat het op als loopschema.html
-func getHtmlFile(schema []int) error {
+// ==================== HTML GENERATIE ====================
+func getHtmlFile(schema []int, km int) error {
 	const tmpl = `
 <!DOCTYPE html>
 <html lang="nl">
@@ -74,71 +89,60 @@ func getHtmlFile(schema []int) error {
     <title>Loopschema</title>
     <style>
         body {
-			font-family: Arial, sans-serif;
-			text-align: center;
-			background-color: #f9f9f9;
-		}
-		h1 { color: #333; }
-		
-		table {
-			border-collapse: collapse;
-			margin: 30px auto;
-			box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-		}
-		th, td {
-			border: 1px solid #aaa;
-			padding: 12px 20px;
-			text-align: center;
-		}
-		th {
-			background-color: #4CAF50;
-			color: white;
-		}
-		tr:nth-child(even) {
-			background-color: #f2f2f2;
-		}
-		.pace {
-			font-weight: bold;
-			font-size: 1.1em;
-		}
-		
-		/* === Belangrijk voor printen === */
-		@media print {
-			body { 
-				background-color: white; 
-				-webkit-print-color-adjust: exact;
-				print-color-adjust: exact;
-			}
-			th {
-				background-color: #4CAF50 !important;
-				color: white !important;
-				-webkit-print-color-adjust: exact;
-				print-color-adjust: exact;
-			}
-			tr:nth-child(even) {
-				background-color: #f2f2f2 !important;
-				-webkit-print-color-adjust: exact;
-				print-color-adjust: exact;
-			}
-		}
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h1 { color: #333; }
+        table {
+            border-collapse: collapse;
+            margin: 30px auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #aaa;
+            padding: 12px 20px;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .pace { font-weight: bold; font-size: 1.1em; }
+        .speed { font-weight: bold; color: #e67e22; }
+        .total { font-weight: bold; color: #2c7a2c; }
+
+        /* Print support */
+        @media print {
+            body { background-color: white; }
+            th { background-color: #4CAF50 !important; color: white !important; }
+            tr:nth-child(even) { background-color: #f2f2f2 !important; }
+        }
     </style>
 </head>
 <body>
     <h1>🏃 Mijn Loopschema</h1>
-    <p><strong>Aantal trainingsdagen:</strong> {{len .}}</p>
-    
+    <p><strong>Aantal trainingsdagen:</strong> {{len .Schema}} &nbsp;&nbsp;&nbsp; <strong>Afstand:</strong> {{.Km}} km</p>
+   
     <table>
         <thead>
             <tr>
                 <th>Dag</th>
                 <th>Tempo (min/km)</th>
+                <th>Snelheid (km/u)</th>
+                <th>Totale tijd ({{.Km}} km)</th>
             </tr>
         </thead>
         <tbody>
-            {{range $index, $seconds := .}}
+            {{range $index, $paceSeconds := .Schema}}
             <tr>
                 <td><strong>{{add1 $index}}</strong></td>
-                <td class="pace">{{convertPace $seconds}}</td>
+                <td class="pace">{{convertPace $paceSeconds}}</td>
+                <td class="speed">{{formatSpeedKmh (paceToSpeed $paceSeconds)}}</td>
+                <td class="total">{{formatTotalTime (calcTotal $paceSeconds $.Km)}}</td>
             </tr>
             {{end}}
         </tbody>
@@ -148,32 +152,47 @@ func getHtmlFile(schema []int) error {
 </body>
 </html>`
 
-	// Maak template met extra functies
+	type PageData struct {
+		Schema []int
+		Km     int
+	}
+
+	data := PageData{
+		Schema: schema,
+		Km:     km,
+	}
+
 	funcMap := template.FuncMap{
-		"add1":       func(i int) int { return i + 1 },
-		"convertPace": convertSecondsToPace,
+		"add1":            func(i int) int { return i + 1 },
+		"convertPace":     convertSecondsToPace,
+		"paceToSpeed":     paceToSpeedKmh,
+		"formatSpeedKmh":  formatSpeedKmh,
+		"calcTotal":       calculateTotalTime,
+		"formatTotalTime": formatTotalTime,
 	}
 
 	t := template.Must(template.New("schema").Funcs(funcMap).Parse(tmpl))
 
-	// Maak het HTML bestand
 	file, err := os.Create("loopschema.html")
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	return t.Execute(file, schema)
+	return t.Execute(file, data)
 }
 
 func main() {
-	var dagen, dubbeldagen, startMin, startSec, doelMin, doelSec int
+	var dagen, dubbeldagen, startMin, startSec, doelMin, doelSec, km int
 
 	fmt.Print("Aantal totale trainingsdagen: ")
 	fmt.Scan(&dagen)
 
 	fmt.Print("Aantal dubbeldagen (dagen met hetzelfde tempo): ")
 	fmt.Scan(&dubbeldagen)
+
+	fmt.Print("Aantal kilometers per training: ")
+	fmt.Scan(&km)
 
 	fmt.Print("Starttempo in min sec / km (bijv. 6 25): ")
 	fmt.Scan(&startMin, &startSec)
@@ -183,7 +202,7 @@ func main() {
 
 	schema := calculateTrainings(dagen, dubbeldagen, startMin, startSec, doelMin, doelSec)
 
-	err := getHtmlFile(schema)
+	err := getHtmlFile(schema, km)
 	if err != nil {
 		fmt.Println("Fout bij genereren van HTML:", err)
 	} else {
