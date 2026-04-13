@@ -18,12 +18,21 @@ func calculateTrainings(dagen int, dubbeldagen int, startMin, startSec, doelMin,
 	startSeconds := 60*startMin + startSec
 	doelSeconds := 60*doelMin + doelSec
 
-	// Voorkom deling door 0 of negatief
-	aantalNormaleDagen := dagen - dubbeldagen
-	if aantalNormaleDagen < 2 {
-		aantalNormaleDagen = 2
+	// Aantal dagen waarop het tempo écht moet dalen (normale dagen)
+	aantalStappen := dagen - dubbeldagen - 1 // -1 omdat we al op dag 1 starten
+	
+	if aantalStappen < 1 {
+		aantalStappen = 1
 	}
-	split := (startSeconds - doelSeconds) / (aantalNormaleDagen - 1)
+	
+	// Totale te verbeteren seconden
+	teVerbeteren := startSeconds - doelSeconds
+
+	// Seconden per normale stap (integer deling)
+	split := teVerbeteren / aantalStappen
+
+	// We houden de "rest" over om aan het eind exact uit te komen
+	rest := teVerbeteren % aantalStappen
 
 	dubbeldagInterval := 0
 	if dubbeldagen > 0 {
@@ -31,16 +40,26 @@ func calculateTrainings(dagen int, dubbeldagen int, startMin, startSec, doelMin,
 	}
 
 	trainingsdagen[0] = startSeconds
+	current := startSeconds
 
 	for i := 1; i < dagen; i++ {
 		if dubbeldagInterval == 0 || (i+1)%dubbeldagInterval != 0 {
 			// Normale dag: tempo verbetert
-			trainingsdagen[i] = trainingsdagen[i-1] - split
-		} else {
-			// Dubbeldag: hetzelfde tempo
-			trainingsdagen[i] = trainingsdagen[i-1]
-		}
+			current -= split
+
+			// Verdeel de rest over de eerste paar normale dagen zodat we exact eindigen
+			if rest > 0 {
+				current--
+				rest--
+			}
+		} 
+		// else: dubbeldag → current blijft hetzelfde
+
+		trainingsdagen[i] = current
 	}
+
+	// Forceer de laatste dag altijd op exact het doeltempo (veiligheid)
+	trainingsdagen[dagen-1] = doelSeconds
 
 	return trainingsdagen
 }
