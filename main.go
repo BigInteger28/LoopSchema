@@ -74,37 +74,53 @@ func getHtmlFile(schema []int) error {
     <title>Loopschema</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f9f9f9;
-        }
-        h1 {
-            color: #333;
-        }
-        table {
-            border-collapse: collapse;
-            margin: 30px auto;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        th, td {
-            border: 1px solid #aaa;
-            padding: 12px 20px;
-            text-align: center;
-        }
-        th {
-            background-color: #4CAF50;
-            color: white;
-        }
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-        tr:hover {
-            background-color: #e0f7e0;
-        }
-        .pace {
-            font-weight: bold;
-            font-size: 1.1em;
-        }
+			font-family: Arial, sans-serif;
+			text-align: center;
+			background-color: #f9f9f9;
+		}
+		h1 { color: #333; }
+		
+		table {
+			border-collapse: collapse;
+			margin: 30px auto;
+			box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+		}
+		th, td {
+			border: 1px solid #aaa;
+			padding: 12px 20px;
+			text-align: center;
+		}
+		th {
+			background-color: #4CAF50;
+			color: white;
+		}
+		tr:nth-child(even) {
+			background-color: #f2f2f2;
+		}
+		.pace {
+			font-weight: bold;
+			font-size: 1.1em;
+		}
+		
+		/* === Belangrijk voor printen === */
+		@media print {
+			body { 
+				background-color: white; 
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
+			th {
+				background-color: #4CAF50 !important;
+				color: white !important;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
+			tr:nth-child(even) {
+				background-color: #f2f2f2 !important;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
+		}
     </style>
 </head>
 <body>
